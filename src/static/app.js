@@ -20,9 +20,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+
+        // Add delete icon to each participant
         const participantsList = details.participants
-          .map(p => `<li>${p}</li>`)
+          .map(p => `
+            <li class="participant-item" data-activity="${name}" data-email="${p}">
+              <span class="participant-email">${p}</span>
+              <span class="delete-participant" title="Remove participant">&times;</span>
+            </li>
+          `)
           .join("");
+
 
         activityCard.innerHTML = `
           <h4>${name}</h4>
@@ -37,7 +45,33 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
 
+
         activitiesList.appendChild(activityCard);
+
+        // Add event listeners for delete icons
+        const deleteIcons = activityCard.querySelectorAll('.delete-participant');
+        deleteIcons.forEach(icon => {
+          icon.addEventListener('click', async (e) => {
+            const li = e.target.closest('li.participant-item');
+            const activityName = li.getAttribute('data-activity');
+            const email = li.getAttribute('data-email');
+            if (confirm(`Remove ${email} from ${activityName}?`)) {
+              try {
+                const response = await fetch(`/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`, {
+                  method: 'DELETE',
+                });
+                const result = await response.json();
+                if (response.ok) {
+                  fetchActivities();
+                } else {
+                  alert(result.detail || 'Failed to remove participant.');
+                }
+              } catch (err) {
+                alert('Failed to remove participant.');
+              }
+            }
+          });
+        });
 
         // Add option to select dropdown
         const option = document.createElement("option");
@@ -68,10 +102,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const result = await response.json();
 
+
       if (response.ok) {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Refresh activities list after successful signup
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
